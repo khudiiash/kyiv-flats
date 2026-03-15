@@ -8,7 +8,8 @@ import {
   getDocs,
   query,
   where,
-  Timestamp
+  Timestamp,
+  deleteField
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../services/firebase'
@@ -170,13 +171,19 @@ export function useFlats(userId: string | null) {
   const updateFlat = useMutation({
     mutationFn: async ({
       id,
+      rating,
       ...updates
-    }: Partial<Flat> & { id: string }) => {
+    }: Omit<Partial<Flat>, 'rating'> & { id: string; rating?: FlatRating | null }) => {
       const { createdAt, updatedAt: _u, ...rest } = updates as Flat
       const data = sanitizeForFirestore({
         ...rest,
         updatedAt: new Date().toISOString()
-      })
+      }) as Record<string, unknown>
+      if (rating === null) {
+        data.rating = deleteField()
+      } else if (rating !== undefined) {
+        data.rating = rating
+      }
       await updateDoc(doc(db, FLATS_COLLECTION, id), data)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['flats', userId] })

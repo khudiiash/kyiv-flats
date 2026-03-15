@@ -460,10 +460,10 @@ function mapLunBuildingType(val: string | undefined): string | undefined {
 function mapLunAppearance(val: string | undefined): string | undefined {
   if (!val) return undefined
   const v = val.toLowerCase()
-  if (/євро|евро|з ремонтом|ремонт|дизайн/i.test(v)) return 'євро'
-  if (/косметич|нормаль/i.test(v)) return 'нормальний'
-  if (/без ремонту|потребує|відсутн/i.test(v)) return 'відсутній'
-  if (/радян|хрущ|сталін/i.test(v)) return 'радянський'
+  if (/євро|евро|з ремонтом|ремонт|дизайн/i.test(v)) return 'євро ремонт'
+  if (/косметич|нормаль/i.test(v)) return 'нормальний ремонт'
+  if (/без ремонту|потребує|відсутн/i.test(v)) return 'без ремонту'
+  if (/радян|хрущ|сталін/i.test(v)) return 'радянський ремонт'
   return undefined
 }
 

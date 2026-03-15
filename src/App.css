@@ -608,6 +608,11 @@
   color: var(--text);
 }
 
+.flat-detail__vote-btn {
+  width: 100%;
+  max-width: 200px;
+}
+
 .flat-detail__rating {
   margin-top: 12px;
   display: flex;
@@ -615,10 +620,17 @@
   gap: 16px;
 }
 
+.flat-detail__rating-form-title {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
 .flat-detail__rating-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .flat-detail__rating-row {
@@ -663,22 +675,89 @@
 }
 
 .flat-detail__rating-display {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.flat-detail__rating-display-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.flat-detail__rating-display-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.flat-detail__rating-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.flat-detail__rating-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flat-detail__rating-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flat-detail__rating-bar-label {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.flat-detail__rating-bar-value {
+  font-size: 0.85rem;
+  color: var(--text);
+  opacity: 0.9;
+}
+
+.flat-detail__rating-bar-track {
+  height: 8px;
+  background: var(--code-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.flat-detail__rating-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.flat-detail__rating-bar-fill--overall {
+  background: linear-gradient(90deg, var(--accent), #c084fc);
+}
+
+.flat-detail__rating-overall .flat-detail__rating-bar-label,
+.flat-detail__rating-overall .flat-detail__rating-bar-value {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.flat-detail__rating-overall {
+  margin-top: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
 
-.flat-detail__rating-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.flat-detail__rating-overall {
-  font-weight: 600;
+.flat-detail__clear-rating {
   margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
 }
 
 .flat-detail__geocode {

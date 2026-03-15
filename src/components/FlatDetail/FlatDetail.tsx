@@ -30,10 +30,6 @@ function toDatetimeLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function getRatingAvg(rating: FlatRating, key: RatingCategoryKey): number {
-  return rating.votes > 0 ? rating[key] / rating.votes : 0
-}
-
 function getRatingOverall(rating: FlatRating): number {
   return (
     rating.location + rating.renovation + rating.communications +
@@ -41,11 +37,25 @@ function getRatingOverall(rating: FlatRating): number {
   )
 }
 
+function getRatingBarPercent(rating: FlatRating, key: RatingCategoryKey): number {
+  if (rating.votes === 0) return 0
+  const sum = rating[key]
+  const max = 5 * rating.votes
+  return max > 0 ? (sum / max) * 100 : 0
+}
+
+function getOverallBarPercent(rating: FlatRating): number {
+  if (rating.votes === 0) return 0
+  const sum = getRatingOverall(rating)
+  const max = 6 * 5 * rating.votes
+  return max > 0 ? (sum / max) * 100 : 0
+}
+
 interface FlatDetailProps {
   flat: Flat
   onEdit: () => void
   onDelete: () => void
-  onUpdate?: (updates: Partial<Flat>) => void
+  onUpdate?: (updates: Omit<Partial<Flat>, 'rating'> & { rating?: FlatRating | null }) => void
   onFixCoordinates?: (coordinates: { lat: number; lng: number }) => void
 }
 
@@ -53,6 +63,7 @@ export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates 
   const [geocoding, setGeocoding] = useState(false)
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null)
   const status = flat.status ?? 'цікавить'
+  const [showRatingForm, setShowRatingForm] = useState(false)
   const [ratingForm, setRatingForm] = useState<Record<RatingCategoryKey, number>>({
     location: 3,
     renovation: 3,
@@ -61,6 +72,7 @@ export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates 
     price: 3,
     impression: 3
   })
+  const hasVotes = flat.rating != null && flat.rating.votes > 0
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -182,64 +194,116 @@ export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates 
         )}
         {status === 'враження' && (
           <div className="flat-detail__rating">
-            <div className="flat-detail__rating-form">
-              {RATING_CATEGORIES.map(({ key, label }) => (
-                <div key={key} className="flat-detail__rating-row">
-                  <label>{label}</label>
-                  <div className="flat-detail__rating-stars">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        className={`flat-detail__star ${ratingForm[key] >= n ? 'flat-detail__star--active' : ''}`}
-                        onClick={() =>
-                          setRatingForm((f) => ({ ...f, [key]: n }))
-                        }
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            {!hasVotes && !showRatingForm && (
               <button
                 type="button"
-                className="btn btn--primary flat-detail__rating-submit"
-                onClick={() => {
-                  const r = flat.rating
-                  const next: FlatRating = {
-                    location: (r?.location ?? 0) + ratingForm.location,
-                    renovation: (r?.renovation ?? 0) + ratingForm.renovation,
-                    communications: (r?.communications ?? 0) + ratingForm.communications,
-                    autonomy: (r?.autonomy ?? 0) + ratingForm.autonomy,
-                    price: (r?.price ?? 0) + ratingForm.price,
-                    impression: (r?.impression ?? 0) + ratingForm.impression,
-                    votes: (r?.votes ?? 0) + 1
-                  }
-                  onUpdate?.({ rating: next })
-                }}
+                className="btn btn--primary flat-detail__vote-btn"
+                onClick={() => setShowRatingForm(true)}
               >
-                Підтвердити
+                Голосувати
               </button>
-            </div>
-            {flat.rating && flat.rating.votes > 0 && (
+            )}
+            {showRatingForm && (
+              <div className="flat-detail__rating-form">
+                {showRatingForm && (
+                  <>
+                    <p className="flat-detail__rating-form-title">Оцініть квартиру</p>
+                    {RATING_CATEGORIES.map(({ key, label }) => (
+                      <div key={key} className="flat-detail__rating-row">
+                        <label>{label}</label>
+                        <div className="flat-detail__rating-stars">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`flat-detail__star ${ratingForm[key] >= n ? 'flat-detail__star--active' : ''}`}
+                              onClick={() =>
+                                setRatingForm((f) => ({ ...f, [key]: n }))
+                              }
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn--primary flat-detail__rating-submit"
+                      onClick={() => {
+                        const r = flat.rating
+                        const next: FlatRating = {
+                          location: (r?.location ?? 0) + ratingForm.location,
+                          renovation: (r?.renovation ?? 0) + ratingForm.renovation,
+                          communications: (r?.communications ?? 0) + ratingForm.communications,
+                          autonomy: (r?.autonomy ?? 0) + ratingForm.autonomy,
+                          price: (r?.price ?? 0) + ratingForm.price,
+                          impression: (r?.impression ?? 0) + ratingForm.impression,
+                          votes: (r?.votes ?? 0) + 1
+                        }
+                        onUpdate?.({ rating: next })
+                        setShowRatingForm(false)
+                      }}
+                    >
+                      Підтвердити
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            {hasVotes && !showRatingForm && (
               <div className="flat-detail__rating-display">
-                <div className="flat-detail__rating-summary">
-                  {RATING_CATEGORIES.map(({ key, label }) => (
-                    <div key={key} className="flat-detail__rating-row">
-                      <span>{label}</span>
-                      <span>{getRatingAvg(flat.rating!, key).toFixed(1)}</span>
+                <div className="flat-detail__rating-display-header">
+                  <p className="flat-detail__rating-display-title">
+                    Рейтинг ({flat.rating!.votes} {flat.rating!.votes === 1 ? 'голос' : 'голосів'})
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn--small btn--primary"
+                    onClick={() => setShowRatingForm(true)}
+                  >
+                    Голосувати
+                  </button>
+                </div>
+                <div className="flat-detail__rating-bars">
+                  {RATING_CATEGORIES.map(({ key, label }) => {
+                    const sum = flat.rating![key]
+                    const max = 5 * flat.rating!.votes
+                    const pct = getRatingBarPercent(flat.rating!, key)
+                    return (
+                      <div key={key} className="flat-detail__rating-bar-row">
+                        <div className="flat-detail__rating-bar-header">
+                          <span className="flat-detail__rating-bar-label">{label}</span>
+                          <span className="flat-detail__rating-bar-value">{sum} / {max}</span>
+                        </div>
+                        <div className="flat-detail__rating-bar-track">
+                          <div
+                            className="flat-detail__rating-bar-fill"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="flat-detail__rating-bar-row flat-detail__rating-overall">
+                    <div className="flat-detail__rating-bar-header">
+                      <span className="flat-detail__rating-bar-label">Загальний</span>
+                      <span className="flat-detail__rating-bar-value">
+                        {getRatingOverall(flat.rating!)} / {6 * 5 * flat.rating!.votes}
+                      </span>
                     </div>
-                  ))}
-                  <div className="flat-detail__rating-row flat-detail__rating-overall">
-                    <span>Загальний</span>
-                    <span>{getRatingOverall(flat.rating!).toFixed(1)}</span>
+                    <div className="flat-detail__rating-bar-track">
+                      <div
+                        className="flat-detail__rating-bar-fill flat-detail__rating-bar-fill--overall"
+                        style={{ width: `${getOverallBarPercent(flat.rating!)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
                 <button
                   type="button"
-                  className="btn btn--small"
-                  onClick={() => onUpdate?.({ rating: undefined })}
+                  className="btn btn--small flat-detail__clear-rating"
+                  onClick={() => onUpdate?.({ rating: null })}
                 >
                   Очистити рейтинг
                 </button>
