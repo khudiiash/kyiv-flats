@@ -59,25 +59,30 @@ export function FlatDetail({ flat, onEdit, onDelete, onFixCoordinates }: FlatDet
     <div className="flat-detail">
       <div className="flat-detail__header">
         <div className="flat-detail__actions">
-          <button type="button" className="btn btn--small" onClick={onEdit}>
+          <button type="button" className="btn flat-detail__action-btn" onClick={onEdit}>
             Редагувати
           </button>
           <button
             type="button"
-            className="btn btn--small btn--danger"
+            className="btn btn--danger flat-detail__action-btn"
             onClick={onDelete}
           >
             Видалити
           </button>
+          {flat.sourceUrl && (
+            <a
+              href={flat.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flat-detail__source-btn"
+              title="Посилання на оголошення"
+              aria-label="Посилання на оголошення"
+            >
+              ↗
+            </a>
+          )}
         </div>
       </div>
-      {flat.sourceUrl && (
-        <div className="flat-detail__source">
-          <a href={flat.sourceUrl} target="_blank" rel="noopener noreferrer" className="flat-detail__source-link">
-            Посилання на оголошення
-          </a>
-        </div>
-      )}
       {isDefaultCoords && flat.address.trim() && onFixCoordinates && (
         <div className="flat-detail__geocode">
           <button
@@ -188,7 +193,18 @@ export function FlatDetail({ flat, onEdit, onDelete, onFixCoordinates }: FlatDet
       {flat.details && (
         <div className="flat-detail__section flat-detail__section--details">
           <strong>Деталі</strong>
-          <p className="flat-detail__details-text">{flat.details}</p>
+          <div className="flat-detail__details-body">
+            {flat.details.split(/\n\n+/).map((para, i) => (
+              <p key={i} className="flat-detail__details-text">
+                {para.trim().split('\n').map((line, j) => (
+                  <span key={j}>
+                    {j > 0 && <br />}
+                    {line}
+                  </span>
+                ))}
+              </p>
+            ))}
+          </div>
         </div>
       )}
     </div>

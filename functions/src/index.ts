@@ -311,10 +311,10 @@ function parseLun($: cheerio.CheerioAPI, url: string): ParsedListing {
   if (commissionMatch && result.commission === undefined) result.commission = parseFloatSafe(commissionMatch[1])
   if (/без комісії/i.test(bodyText) && result.commission === undefined) result.commission = 0
 
-  if (/новий ремонт|євроремонт|дизайнерський ремонт|з ремонтом/i.test(bodyText)) result.appearance ??= 'євро'
-  else if (/косметичний ремонт|нормальний/i.test(bodyText)) result.appearance ??= 'нормальний'
-  else if (/потребує ремонту|без ремонту|старий ремонт/i.test(bodyText)) result.appearance ??= 'відсутній'
-  else if (/радянськ|хрущовк|сталінка/i.test(bodyText)) result.appearance ??= 'радянський'
+  if (/новий ремонт|євроремонт|дизайнерський ремонт|з ремонтом/i.test(bodyText)) result.appearance ??= 'євро ремонт'
+  else if (/косметичний ремонт|нормальний/i.test(bodyText)) result.appearance ??= 'нормальний ремонт'
+  else if (/потребує ремонту|без ремонту|старий ремонт/i.test(bodyText)) result.appearance ??= 'без ремонту'
+  else if (/радянськ|хрущовк|сталінка/i.test(bodyText)) result.appearance ??= 'радянський ремонт'
 
   const infra: string[] = []
   if (/метро|м\s+[А-Яа-яіїєґІЇЄҐ]+/i.test(bodyText)) infra.push('метро')

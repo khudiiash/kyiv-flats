@@ -1,6 +1,10 @@
 # Kyiv Flats
 
-A PWA for managing apartment search in Kyiv. Store options on a Google Map, filter and sort in the sidebar, add/edit flats with photos and details.
+A PWA for managing apartment search in Kyiv.
+
+**Live:** https://kyiv-flats.web.app
+
+Store options on a Google Map, filter and sort in the sidebar, add/edit flats with photos and details.
 
 ## Setup
 
@@ -79,7 +83,7 @@ In GitHub repo → **Settings → Secrets and variables → Actions**, add:
 
 | Secret | Description |
 |--------|-------------|
-| `FIREBASE_TOKEN` | Run `firebase login:ci` locally, paste the token |
+| `FIREBASE_TOKEN` | Run `npx firebase-tools login:ci` (or `firebase login:ci`). A browser opens; sign in. Copy the long token from the terminal and paste as the secret. |
 | `VITE_FIREBASE_API_KEY` | From Firebase config |
 | `VITE_FIREBASE_AUTH_DOMAIN` | From Firebase config |
 | `VITE_FIREBASE_PROJECT_ID` | From Firebase config |
