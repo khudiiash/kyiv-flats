@@ -1,5 +1,6 @@
-export const APPEARANCE_OPTIONS = ['євро', 'нормальний', 'радянський', 'відсутній'] as const
-export const BUILDING_TYPE_OPTIONS = ['цегла', 'моноліт', 'панельний'] as const
+export const APPEARANCE_OPTIONS = ['євро ремонт', 'нормальний ремонт', 'радянський ремонт', 'без ремонту'] as const
+export const BUILDING_MATERIAL_OPTIONS = ['цегла', 'моноліт', 'панельний'] as const
+export const BUILDING_ERA_OPTIONS = ['сталінка', 'хрущівка', 'новобудова'] as const
 export const INFRASTRUCTURE_OPTIONS = ['метро', 'тц', 'розваги', 'відпочинок', 'школа'] as const
 export const SELLER_TYPE_OPTIONS = ['власник', 'рієлтор'] as const
 
@@ -39,8 +40,11 @@ export interface Flat {
   coordinates: { lat: number; lng: number }
   priceUsd: number
   areaSqm: number
+  rooms?: number
   appearance?: string
-  buildingType?: string
+  buildingMaterial?: string
+  buildingEra?: string
+  constructionYear?: number
   floor?: string
   infrastructure?: string[]
   parksNearby?: string[]

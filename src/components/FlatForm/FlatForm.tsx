@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Flat } from '../../types/flat'
-import { APPEARANCE_OPTIONS, BUILDING_TYPE_OPTIONS, SELLER_TYPE_OPTIONS } from '../../types/flat'
+import { APPEARANCE_OPTIONS, BUILDING_MATERIAL_OPTIONS, BUILDING_ERA_OPTIONS, SELLER_TYPE_OPTIONS } from '../../types/flat'
 import { parseListingUrl } from '../../services/firebase'
 import { geocodeAddress as geocode } from '../../services/geocoding'
 import type { SearchLocation } from '../Map/MapView'
@@ -21,9 +21,12 @@ export interface FlatFormData {
   coordinates: { lat: number; lng: number }
   priceUsd: number
   areaSqm: number
+  rooms?: number
   sourceUrl: string
   appearance?: string
-  buildingType?: string
+  buildingMaterial?: string
+  buildingEra?: string
+  constructionYear?: number
   floor?: string
   infrastructure?: string[]
   parksNearby?: string[]
@@ -45,6 +48,23 @@ const emptyForm: FlatFormData = {
   photos: []
 }
 
+function inferBuildingEraFromYear(year: number): 'сталінка' | 'хрущівка' | 'новобудова' {
+  if (year >= 1995) return 'новобудова'
+  if (year >= 1956) return 'хрущівка'
+  if (year >= 1930) return 'сталінка'
+  return 'хрущівка'
+}
+
+function inferAppearanceFromEra(era: string): string {
+  if (era === 'сталінка' || era === 'хрущівка') return 'радянський ремонт'
+  if (era === 'новобудова') return 'євро ремонт'
+  return ''
+}
+
+function isValidAppearance(val: string | undefined): boolean {
+  return !!val && APPEARANCE_OPTIONS.includes(val as (typeof APPEARANCE_OPTIONS)[number])
+}
+
 export function FlatForm({
   flat,
   initialData,
@@ -56,7 +76,6 @@ export function FlatForm({
   onParsedLocation
 }: FlatFormProps) {
   const [form, setForm] = useState<FlatFormData>(emptyForm)
-  const [geocoding, setGeocoding] = useState(false)
   const [parsingUrl, setParsingUrl] = useState(false)
   const [submitGeocoding, setSubmitGeocoding] = useState(false)
 
@@ -67,14 +86,27 @@ export function FlatForm({
 
   useEffect(() => {
     if (flat) {
+      let appearance = flat.appearance
+      let buildingEra = flat.buildingEra
+      const year = flat.constructionYear
+      if (!buildingEra && year != null && year >= 1900 && year <= 2030) {
+        buildingEra = inferBuildingEraFromYear(year)
+      }
+      if (!isValidAppearance(appearance) && buildingEra) {
+        const inferred = inferAppearanceFromEra(buildingEra)
+        if (inferred) appearance = inferred
+      }
       setForm({
         address: flat.address,
         coordinates: flat.coordinates,
         priceUsd: flat.priceUsd,
         areaSqm: flat.areaSqm,
+        rooms: flat.rooms,
         sourceUrl: flat.sourceUrl ?? '',
-        appearance: flat.appearance,
-        buildingType: flat.buildingType,
+        appearance,
+        buildingMaterial: flat.buildingMaterial,
+        buildingEra,
+        constructionYear: flat.constructionYear,
         floor: flat.floor,
         infrastructure: flat.infrastructure ?? [],
         parksNearby: flat.parksNearby ?? [],
@@ -97,19 +129,6 @@ export function FlatForm({
     }
   }, [flat, initialData])
 
-  const geocodeAddress = async () => {
-    if (!form.address.trim()) return
-    setGeocoding(true)
-    try {
-      const coords = await geocode(form.address)
-      if (coords) {
-        setForm((f) => ({ ...f, coordinates: coords }))
-      }
-    } finally {
-      setGeocoding(false)
-    }
-  }
-
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length || !flat?.id) return
@@ -126,8 +145,11 @@ export function FlatForm({
         address?: string
         priceUsd?: number
         areaSqm?: number
+        rooms?: number
         details?: string
-        buildingType?: string
+        buildingMaterial?: string
+        buildingEra?: string
+        constructionYear?: number
         floor?: string
         commission?: number
         sellerType?: string
@@ -137,23 +159,38 @@ export function FlatForm({
         photos?: string[]
         publishedAt?: string
       }
-      setForm((f) => ({
-        ...f,
-        address: d.address ?? f.address,
-        priceUsd: d.priceUsd ?? f.priceUsd,
-        areaSqm: d.areaSqm ?? f.areaSqm,
-        sourceUrl: f.sourceUrl.trim(),
-        details: d.details ?? f.details,
-        buildingType: d.buildingType ?? f.buildingType,
-        floor: d.floor ?? f.floor,
-        commission: d.commission ?? f.commission,
-        sellerType: d.sellerType ?? f.sellerType,
-        sellerName: d.sellerName ?? f.sellerName,
-        appearance: d.appearance ?? f.appearance,
-        infrastructure: d.infrastructure ?? f.infrastructure ?? [],
-        photos: d.photos?.length ? d.photos : f.photos,
-        publishedAt: d.publishedAt ?? f.publishedAt
-      }))
+      setForm((f) => {
+        let buildingEra = d.buildingEra ?? f.buildingEra
+        let appearance = d.appearance ?? f.appearance
+        const year = d.constructionYear ?? f.constructionYear
+        if (!buildingEra && year != null && year >= 1900 && year <= 2030) {
+          buildingEra = inferBuildingEraFromYear(year)
+        }
+        if (!isValidAppearance(appearance) && buildingEra) {
+          const inferred = inferAppearanceFromEra(buildingEra)
+          if (inferred) appearance = inferred
+        }
+        return {
+          ...f,
+          address: d.address ?? f.address,
+          priceUsd: d.priceUsd ?? f.priceUsd,
+          areaSqm: d.areaSqm ?? f.areaSqm,
+          rooms: d.rooms ?? f.rooms,
+          sourceUrl: f.sourceUrl.trim(),
+          details: d.details ?? f.details,
+          buildingMaterial: d.buildingMaterial ?? f.buildingMaterial,
+          buildingEra,
+          constructionYear: year,
+          floor: d.floor ?? f.floor,
+          commission: d.commission ?? f.commission,
+          sellerType: d.sellerType ?? f.sellerType,
+          sellerName: d.sellerName ?? f.sellerName,
+          appearance,
+          infrastructure: d.infrastructure ?? f.infrastructure ?? [],
+          photos: d.photos?.length ? d.photos : f.photos,
+          publishedAt: d.publishedAt ?? f.publishedAt
+        }
+      })
 
       // Geocode and show on map
       const address = d.address ?? ''
@@ -213,19 +250,14 @@ export function FlatForm({
         </div>
         <div className="flat-form__field">
           <label>Адреса *</label>
-          <div className="flat-form__input-group">
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-              required
-            />
-            <button type="button" className="btn btn--small" onClick={geocodeAddress} disabled={geocoding || !form.address.trim()}>
-              {geocoding ? '…' : 'Координати'}
-            </button>
-          </div>
+          <input
+            type="text"
+            value={form.address}
+            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            required
+          />
         </div>
-        <div className="flat-form__row flat-form__row--3">
+        <div className="flat-form__row flat-form__row--4">
           <div className="flat-form__field">
             <label>Ціна $ *</label>
             <input type="number" min={0} value={form.priceUsd || ''} onChange={(e) => setForm((f) => ({ ...f, priceUsd: Number(e.target.value) || 0 }))} required />
@@ -235,11 +267,15 @@ export function FlatForm({
             <input type="number" min={0} step={0.1} value={form.areaSqm || ''} onChange={(e) => setForm((f) => ({ ...f, areaSqm: Number(e.target.value) || 0 }))} required />
           </div>
           <div className="flat-form__field">
+            <label>Кімнат</label>
+            <input type="number" min={1} max={20} value={form.rooms ?? ''} onChange={(e) => setForm((f) => ({ ...f, rooms: e.target.value ? Number(e.target.value) : undefined }))} placeholder="—" />
+          </div>
+          <div className="flat-form__field">
             <label>Комісія %</label>
             <input type="number" min={0} max={100} value={form.commission ?? ''} onChange={(e) => setForm((f) => ({ ...f, commission: e.target.value ? Number(e.target.value) : undefined }))} />
           </div>
         </div>
-        <div className="flat-form__row flat-form__row--2">
+        <div className="flat-form__row flat-form__row--4">
           <div className="flat-form__field">
             <label>Стан</label>
             <select value={form.appearance ?? ''} onChange={(e) => setForm((f) => ({ ...f, appearance: e.target.value || undefined }))}>
@@ -248,11 +284,43 @@ export function FlatForm({
             </select>
           </div>
           <div className="flat-form__field">
-            <label>Будинок</label>
-            <select value={form.buildingType ?? ''} onChange={(e) => setForm((f) => ({ ...f, buildingType: e.target.value || undefined }))}>
+            <label>Матеріал</label>
+            <select value={form.buildingMaterial ?? ''} onChange={(e) => setForm((f) => ({ ...f, buildingMaterial: e.target.value || undefined }))}>
               <option value="">—</option>
-              {BUILDING_TYPE_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              {BUILDING_MATERIAL_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
             </select>
+          </div>
+          <div className="flat-form__field">
+            <label>Тип</label>
+            <select value={form.buildingEra ?? ''} onChange={(e) => setForm((f) => ({ ...f, buildingEra: e.target.value || undefined }))}>
+              <option value="">—</option>
+              {BUILDING_ERA_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          </div>
+          <div className="flat-form__field">
+            <label>Рік</label>
+            <input
+              type="number"
+              min={1900}
+              max={2030}
+              placeholder="—"
+              value={form.constructionYear ?? ''}
+              onChange={(e) => {
+                const val = e.target.value
+                const year = val ? Number(val) : undefined
+                setForm((f) => {
+                  const next = { ...f, constructionYear: year }
+                  if (year != null && year >= 1900 && year <= 2030) {
+                    if (!f.buildingEra) next.buildingEra = inferBuildingEraFromYear(year)
+                    if (!isValidAppearance(f.appearance) && next.buildingEra) {
+                      const inferred = inferAppearanceFromEra(next.buildingEra)
+                      if (inferred) next.appearance = inferred
+                    }
+                  }
+                  return next
+                })
+              }}
+            />
           </div>
         </div>
         <div className="flat-form__row flat-form__row--2">

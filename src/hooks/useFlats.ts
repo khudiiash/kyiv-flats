@@ -52,6 +52,16 @@ function parseRating(val: unknown): FlatRating | undefined {
   }
 }
 
+const ERA_VALUES = ['сталінка', 'хрущівка', 'новобудова']
+const MATERIAL_VALUES = ['цегла', 'моноліт', 'панельний']
+
+function pickBuildingField(val: unknown, kind: 'material' | 'era'): string | undefined {
+  const s = String(val || '').trim()
+  if (!s) return undefined
+  const list = kind === 'era' ? ERA_VALUES : MATERIAL_VALUES
+  return list.includes(s) ? s : undefined
+}
+
 function parseCoordinates(val: unknown): { lat: number; lng: number } {
   if (!val || typeof val !== 'object') return { lat: 50.4501, lng: 30.5234 }
   const o = val as Record<string, unknown>
@@ -82,8 +92,11 @@ function toFlat(docSnap: { id: string; data: Record<string, unknown> }): Flat {
     coordinates: parseCoordinates(data.coordinates),
     priceUsd: Number(data.priceUsd) || 0,
     areaSqm: Number(data.areaSqm) || 0,
+    rooms: data.rooms != null ? Number(data.rooms) : undefined,
     appearance: data.appearance as string | undefined,
-    buildingType: data.buildingType as string | undefined,
+    buildingMaterial: pickBuildingField(data.buildingMaterial ?? data.buildingType, 'material'),
+    buildingEra: pickBuildingField(data.buildingEra ?? data.buildingType, 'era'),
+    constructionYear: data.constructionYear != null ? Number(data.constructionYear) : undefined,
     floor: data.floor as string | undefined,
     infrastructure: Array.isArray(data.infrastructure)
       ? data.infrastructure

@@ -150,7 +150,11 @@ export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates 
       )}
       <div className="flat-detail__meta">
         ${flat.priceUsd.toLocaleString()}
+        {flat.rooms != null && <> · {flat.rooms} кімн.</>}
         {flat.areaSqm != null && <> · {flat.areaSqm} m²</>}
+        {flat.buildingMaterial && <> · {flat.buildingMaterial}</>}
+        {flat.buildingEra && <> · {flat.buildingEra}</>}
+        {flat.constructionYear && <> · {flat.constructionYear} р.</>}
         {flat.floor && <> · {flat.floor} поверх</>}
         {flat.commission != null && flat.commission > 0 && (
           <> · Комісія {flat.commission}%</>
@@ -377,13 +381,17 @@ export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates 
           )}
         </div>
       )}
-      {(flat.appearance || flat.buildingType) && (
+      {(flat.appearance || flat.buildingMaterial || flat.buildingEra || flat.constructionYear) && (
         <div className="flat-detail__section">
           <strong>Квартира</strong>
           <p>
             {flat.appearance && <>{flat.appearance}</>}
-            {flat.appearance && flat.buildingType && ' · '}
-            {flat.buildingType && <>{flat.buildingType}</>}
+            {flat.appearance && (flat.buildingMaterial || flat.buildingEra || flat.constructionYear) && ' · '}
+            {flat.buildingMaterial && <>{flat.buildingMaterial}</>}
+            {flat.buildingMaterial && (flat.buildingEra || flat.constructionYear) && ' · '}
+            {flat.buildingEra && <>{flat.buildingEra}</>}
+            {flat.buildingEra && flat.constructionYear && ' · '}
+            {flat.constructionYear && <>{flat.constructionYear} р. буд.</>}
           </p>
         </div>
       )}

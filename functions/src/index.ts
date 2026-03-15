@@ -5,9 +5,12 @@ export interface ParsedListing {
   address?: string
   priceUsd?: number
   areaSqm?: number
+  rooms?: number
   details?: string
-  buildingType?: string
-  floor?: string
+  buildingMaterial?: string
+  buildingEra?: string
+  constructionYear?: number
+  floor?: string 
   commission?: number
   sellerType?: string
   sellerName?: string
@@ -59,6 +62,24 @@ export const parseListingUrl = onCall(
       if (result.areaSqm !== undefined && !Number.isFinite(result.areaSqm)) delete result.areaSqm
       if (result.commission !== undefined && !Number.isFinite(result.commission)) delete result.commission
 
+      // Якщо тип не знайдено, а рік є — визначити тип по року
+      if (!result.buildingEra && result.constructionYear != null) {
+        const y = result.constructionYear
+        if (y >= 1995) result.buildingEra = 'новобудова'
+        else if (y >= 1956) result.buildingEra = 'хрущівка'
+        else if (y >= 1930) result.buildingEra = 'сталінка'
+        else result.buildingEra = 'хрущівка'
+      }
+
+      // Якщо стан ремонту не знайдено — визначити по типу будинку
+      if (!result.appearance && result.buildingEra) {
+        if (result.buildingEra === 'сталінка' || result.buildingEra === 'хрущівка') {
+          result.appearance = 'радянський ремонт'
+        } else if (result.buildingEra === 'новобудова') {
+          result.appearance = 'євро ремонт'
+        }
+      }
+
       return result
     } catch (err) {
       if (err instanceof HttpsError) throw err
@@ -67,6 +88,20 @@ export const parseListingUrl = onCall(
     }
   }
 )
+
+function extractRoomsFromTitle(title: string): number | undefined {
+  const m =
+    title.match(/(\d+)\s*кімнатн/i) ??
+    title.match(/(\d+)-кімнатн/i) ??
+    title.match(/(\d+)-х\s*кімнатн/i) ??
+    title.match(/(\d+)[кk]\s/i) ??
+    title.match(/\b(\d+)[кk]\b/i)
+  if (m) {
+    const n = parseInt(m[1], 10)
+    return !isNaN(n) && n >= 1 && n <= 20 ? n : undefined
+  }
+  return undefined
+}
 
 // --- dom.ria / DIM.RIA parser ---
 function parseDomRia($: cheerio.CheerioAPI, url: string): ParsedListing {
@@ -85,6 +120,10 @@ function parseDomRia($: cheerio.CheerioAPI, url: string): ParsedListing {
         result.address ??= json.address?.streetAddress ?? json.address?.name
         result.priceUsd ??= parsePrice(json.offers?.price ?? json.price)
         result.areaSqm ??= parseFloatSafe(json.floorSize?.value ?? json.area?.value ?? '')
+        const rooms = json.numberOfRooms ?? json.rooms ?? json.roomCount
+        if (rooms != null) result.rooms ??= Math.round(Number(rooms)) || undefined
+        const buildYear = json.constructionYear ?? json.yearBuilt ?? json.buildYear
+        if (buildYear != null) result.constructionYear ??= Math.round(Number(buildYear)) || undefined
       }
     } catch { /* ignore */ }
   })
@@ -100,6 +139,8 @@ function parseDomRia($: cheerio.CheerioAPI, url: string): ParsedListing {
     result.address ??= extractAddressFromTitle(title)
     const areaStr = extractAreaFromTitle(title)
     if (areaStr) result.areaSqm ??= parseFloatSafe(areaStr)
+    const roomsFromTitle = extractRoomsFromTitle(title)
+    if (roomsFromTitle != null) result.rooms ??= roomsFromTitle
   }
   result.details ??= metaDesc || undefined
 
@@ -117,12 +158,59 @@ function parseDomRia($: cheerio.CheerioAPI, url: string): ParsedListing {
   const areaMatch = bodyText.match(/Загальна площа\s*([\d.]+)\s*м/i)
   if (areaMatch) result.areaSqm ??= parseFloatSafe(areaMatch[1])
 
-  if (/цегла|цегл[оі]|обкладений цеглою/i.test(bodyText)) result.buildingType ??= 'цегла'
-  else if (/моноліт/i.test(bodyText)) result.buildingType ??= 'моноліт'
-  else if (/панел/i.test(bodyText)) result.buildingType ??= 'панельний'
+  // Рік будівництва — витягуємо до ери, щоб перевірити новобудову
+  const yearMatch =
+    bodyText.match(/(\d{4})\s*рік\s*будівництва/i) ??
+    bodyText.match(/рік\s*будівництва\s*:?\s*(\d{4})/i) ??
+    bodyText.match(/збудовано\s*(\d{4})/i) ??
+    bodyText.match(/побудовано\s*(\d{4})/i) ??
+    bodyText.match(/(\d{4})\s*р\.?\s*буд/i) ??
+    bodyText.match(/будівництво\s*(\d{4})/i)
+  let parsedYear: number | undefined
+  if (yearMatch) {
+    const y = parseInt(yearMatch[1], 10)
+    if (!isNaN(y) && y >= 1900 && y <= 2030) {
+      parsedYear = y
+      result.constructionYear ??= y
+    }
+  }
+
+  // Ера будинку: сталінка, хрущівка — пріоритет; новобудова тільки якщо рік >= 1995
+  if (/сталінк|сталинк/i.test(bodyText)) result.buildingEra ??= 'сталінка'
+  else if (/хрущ[оі]вк|хрущовк/i.test(bodyText)) result.buildingEra ??= 'хрущівка'
+  else if (/новобудов/i.test(bodyText) && (parsedYear == null || parsedYear >= 1995)) result.buildingEra ??= 'новобудова'
+
+  // Матеріал будинку (цегляний, цегляному, цегла, цеглою)
+  if (/цегла|цегл[оіая]?|цеглян|обкладений цеглою/i.test(bodyText)) result.buildingMaterial ??= 'цегла'
+  else if (/моноліт/i.test(bodyText)) result.buildingMaterial ??= 'моноліт'
+  else if (/панел/i.test(bodyText)) result.buildingMaterial ??= 'панельний'
 
   const floorMatch = bodyText.match(/(\d+)\s*поверх\s*з\s*(\d+)/i)
   if (floorMatch) result.floor ??= `${floorMatch[1]} з ${floorMatch[2]}`
+
+  const roomsVal =
+    bodyText.match(/(\d+)\s*кімнат[ауеи]?/i)?.[1] ??
+    bodyText.match(/(\d+)-кімнатн/i)?.[1] ??
+    bodyText.match(/(\d+)-х\s*кімнатн/i)?.[1] ??
+    bodyText.match(/кімнат[иі]?\s*:?\s*(\d+)/i)?.[1] ??
+    bodyText.match(/(\d+)[кk](?:\s|$)/i)?.[1] ??
+    bodyText.match(/\b(\d+)[кk]\b/i)?.[1]
+  if (roomsVal) {
+    const n = parseInt(roomsVal, 10)
+    if (!isNaN(n) && n >= 1 && n <= 20) result.rooms ??= n
+  }
+
+  // dom.ria: шукаємо в блоках характеристик (наприклад "1 кімната" окремим рядком)
+  if (result.rooms === undefined) {
+    $('[class*="characteristic"], [class*="Characteristic"], [class*="info"], [class*="params"]').each((_, el) => {
+      const text = $(el).text()
+      const m = text.match(/^(\d+)\s*кімнат[ауеи]?$/im) ?? text.match(/(\d+)\s*кімнат[ауеи]?/i)
+      if (m) {
+        const n = parseInt(m[1], 10)
+        if (!isNaN(n) && n >= 1 && n <= 20) result.rooms ??= n
+      }
+    })
+  }
 
   // Імʼя контактної особи: ContactsDetails_title (рядок з імʼям поруч з типом продавця)
   const sellerNameEl = $('[class*="ContactsDetails_title"]').first().text().trim()
@@ -204,9 +292,29 @@ function parseLun($: cheerio.CheerioAPI, url: string): ParsedListing {
         result.address ??= listing.address ?? listing.street ?? listing.fullAddress
         result.priceUsd ??= parsePrice(listing.priceUsd ?? listing.price ?? listing.priceUSD)
         result.areaSqm ??= parseFloatSafe(listing.area ?? listing.totalArea ?? listing.areaSqm)
+        const lunRooms =
+          listing.rooms ??
+          listing.roomsCount ??
+          listing.roomCount ??
+          listing.numberOfRooms ??
+          listing.room_count ??
+          listing.rooms_count ??
+          listing.features?.rooms ??
+          listing.params?.rooms ??
+          listing.characteristics?.rooms
+        if (lunRooms != null) result.rooms ??= Math.round(Number(lunRooms)) || undefined
         result.floor ??= listing.floor ? `${listing.floor} з ${listing.floorsTotal ?? ''}`.replace(/ з $/, '') : undefined
         result.details ??= listing.description ?? listing.text
-        result.buildingType ??= mapLunBuildingType(listing.wallType ?? listing.buildingType)
+        result.buildingMaterial ??= mapLunBuildingType(listing.wallType ?? listing.buildingType)
+        const buildYear =
+          listing.constructionYear ??
+          listing.yearBuilt ??
+          listing.buildYear ??
+          (listing as Record<string, unknown>).year
+        const yearNum = buildYear != null ? Math.round(Number(buildYear)) : undefined
+        if (yearNum != null && yearNum >= 1900 && yearNum <= 2030) result.constructionYear ??= yearNum
+        const lunEra = mapLunBuildingCategory(listing.buildingCategory ?? listing.buildingType ?? listing.type)
+        if (lunEra && (lunEra !== 'новобудова' || yearNum == null || yearNum >= 1995)) result.buildingEra ??= lunEra
         result.appearance ??= mapLunAppearance(listing.renovation ?? listing.state)
         const lunSeller = String(listing.sellerType ?? listing.owner ?? listing.source ?? '').toLowerCase()
         if (/власник|owner/i.test(lunSeller)) {
@@ -243,6 +351,10 @@ function parseLun($: cheerio.CheerioAPI, url: string): ParsedListing {
         result.address ??= json.address?.streetAddress ?? json.address?.name
         result.priceUsd ??= parsePrice(json.offers?.price ?? json.price)
         result.areaSqm ??= parseFloatSafe(json.floorSize?.value ?? json.area?.value ?? '')
+        const rooms = json.numberOfRooms ?? json.rooms ?? json.roomCount
+        if (rooms != null) result.rooms ??= Math.round(Number(rooms)) || undefined
+        const buildYear = json.constructionYear ?? json.yearBuilt ?? json.buildYear
+        if (buildYear != null) result.constructionYear ??= Math.round(Number(buildYear)) || undefined
       }
     } catch { /* ignore */ }
   })
@@ -257,6 +369,8 @@ function parseLun($: cheerio.CheerioAPI, url: string): ParsedListing {
     result.address ??= extractAddressFromTitle(title)
     const areaStr = extractAreaFromTitle(title)
     if (areaStr) result.areaSqm ??= parseFloatSafe(areaStr)
+    const roomsFromTitle = extractRoomsFromTitle(title)
+    if (roomsFromTitle != null) result.rooms ??= roomsFromTitle
   }
   result.details ??= result.raw!['og:description'] ?? result.raw!['description'] ?? undefined
 
@@ -277,12 +391,53 @@ function parseLun($: cheerio.CheerioAPI, url: string): ParsedListing {
   const areaMatch = bodyText.match(/Загальна площа\s*([\d.]+)\s*м/i)
   if (areaMatch) result.areaSqm ??= parseFloatSafe(areaMatch[1])
 
-  if (/цегла|цегл[оі]|сталінка/i.test(bodyText)) result.buildingType ??= 'цегла'
-  else if (/моноліт|каркас/i.test(bodyText)) result.buildingType ??= 'моноліт'
-  else if (/панел/i.test(bodyText)) result.buildingType ??= 'панельний'
+  const yearMatch =
+    bodyText.match(/(\d{4})\s*рік\s*будівництва/i) ??
+    bodyText.match(/рік\s*будівництва\s*:?\s*(\d{4})/i) ??
+    bodyText.match(/збудовано\s*(\d{4})/i) ??
+    bodyText.match(/побудовано\s*(\d{4})/i) ??
+    bodyText.match(/(\d{4})\s*р\.?\s*буд/i) ??
+    bodyText.match(/будівництво\s*(\d{4})/i)
+  if (yearMatch && result.constructionYear === undefined) {
+    const y = parseInt(yearMatch[1], 10)
+    if (!isNaN(y) && y >= 1900 && y <= 2030) result.constructionYear = y
+  }
+  const yearForEra = result.constructionYear
+
+  if (/сталінк|сталинк/i.test(bodyText)) result.buildingEra ??= 'сталінка'
+  else if (/хрущ[оі]вк|хрущовк/i.test(bodyText)) result.buildingEra ??= 'хрущівка'
+  else if (/новобудов/i.test(bodyText) && (yearForEra == null || yearForEra >= 1995)) result.buildingEra ??= 'новобудова'
+
+  if (/цегла|цегл[оіая]?|цеглян|обкладений цеглою/i.test(bodyText)) result.buildingMaterial ??= 'цегла'
+  else if (/моноліт|каркас/i.test(bodyText)) result.buildingMaterial ??= 'моноліт'
+  else if (/панел/i.test(bodyText)) result.buildingMaterial ??= 'панельний'
 
   const floorMatch = bodyText.match(/(\d+)\s*поверх\s*з\s*(\d+)/i) ?? bodyText.match(/поверх\s*(\d+)\s*з\s*(\d+)/i)
   if (floorMatch) result.floor ??= `${floorMatch[1]} з ${floorMatch[2]}`
+
+  const roomsVal =
+    bodyText.match(/(\d+)\s*кімнат[ауеи]?/i)?.[1] ??
+    bodyText.match(/(\d+)-кімнатн/i)?.[1] ??
+    bodyText.match(/(\d+)-х\s*кімнатн/i)?.[1] ??
+    bodyText.match(/кімнат[иі]?\s*:?\s*(\d+)/i)?.[1] ??
+    bodyText.match(/(\d+)[кk](?:\s|$)/i)?.[1] ??
+    bodyText.match(/\b(\d+)[кk]\b/i)?.[1]
+  if (roomsVal && result.rooms === undefined) {
+    const n = parseInt(roomsVal, 10)
+    if (!isNaN(n) && n >= 1 && n <= 20) result.rooms = n
+  }
+
+  // lun.ua: шукаємо в блоках з характеристиками
+  if (result.rooms === undefined) {
+    $('[class*="room"], [class*="Room"], [class*="characteristic"], [class*="info"]').each((_, el) => {
+      const text = $(el).text()
+      const m = text.match(/^(\d+)\s*кімнат[ауеи]?$/im) ?? text.match(/(\d+)\s*кімнат[ауеи]?/i)
+      if (m) {
+        const n = parseInt(m[1], 10)
+        if (!isNaN(n) && n >= 1 && n <= 20) result.rooms ??= n
+      }
+    })
+  }
 
   // Імʼя контактної особи: ContactsDetails_title (рядок з імʼям поруч з типом продавця)
   const sellerNameEl = $('[class*="ContactsDetails_title"]').first().text().trim()
@@ -451,9 +606,18 @@ function extractAreaFromTitle(title: string): string | undefined {
 function mapLunBuildingType(val: string | undefined): string | undefined {
   if (!val) return undefined
   const v = val.toLowerCase()
-  if (/цегла|цегл|кирпич/i.test(v)) return 'цегла'
+  if (/цегла|цегл|цеглян|кирпич/i.test(v)) return 'цегла'
   if (/моноліт|монолит|каркас/i.test(v)) return 'моноліт'
   if (/панел/i.test(v)) return 'панельний'
+  return undefined
+}
+
+function mapLunBuildingCategory(val: string | undefined): string | undefined {
+  if (!val) return undefined
+  const v = val.toLowerCase()
+  if (/новобудов|new.?build|новострой/i.test(v)) return 'новобудова'
+  if (/хрущ[оі]вк|хрущовк|khrushch/i.test(v)) return 'хрущівка'
+  if (/сталінк|сталинк|stalin/i.test(v)) return 'сталінка'
   return undefined
 }
 

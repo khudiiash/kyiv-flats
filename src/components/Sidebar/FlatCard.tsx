@@ -26,6 +26,7 @@ export function FlatCard({ flat, isSelected, onClick }: FlatCardProps) {
       <div className="flat-card__body">
         <div className="flat-card__price">${flat.priceUsd.toLocaleString()}</div>
         <div className="flat-card__meta">
+          {flat.rooms != null && <>{flat.rooms} кімн. · </>}
           {flat.areaSqm} m² · {flat.address.slice(0, 40)}
           {flat.address.length > 40 ? '…' : ''}
         </div>

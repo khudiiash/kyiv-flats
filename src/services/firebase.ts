@@ -21,5 +21,5 @@ export const functions = getFunctions(app)
 
 export const parseListingUrl = httpsCallable<
   { url: string },
-  { data: { address?: string; priceUsd?: number; areaSqm?: number; details?: string; buildingType?: string; floor?: string; commission?: number; sellerType?: string; appearance?: string; infrastructure?: string[]; photos?: string[]; publishedAt?: string; sourceUrl?: string; raw?: Record<string, string> } }
+  { data: { address?: string; priceUsd?: number; areaSqm?: number; rooms?: number; details?: string; buildingMaterial?: string; buildingEra?: string; constructionYear?: number; floor?: string; commission?: number; sellerType?: string; appearance?: string; infrastructure?: string[]; photos?: string[]; publishedAt?: string; sourceUrl?: string; raw?: Record<string, string> } }
 >(functions, 'parseListingUrl')

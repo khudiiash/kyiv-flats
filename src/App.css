@@ -78,6 +78,7 @@
 .app-panel__body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
 }
 
@@ -346,7 +347,9 @@
 
 /* Flat form */
 .flat-form {
-  min-width: 300px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .flat-form__error {
@@ -371,6 +374,7 @@
 
 .flat-form__row--2 > * { flex: 1; }
 .flat-form__row--3 > * { flex: 1; }
+.flat-form__row--4 > * { flex: 1 1 0; min-width: 0; }
 
 .flat-form__field {
   margin-bottom: 14px;
@@ -412,6 +416,11 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.9rem;
+}
+
+.flat-form select {
+  min-width: 0;
+  text-overflow: ellipsis;
 }
 
 .flat-form textarea {
@@ -1052,11 +1061,13 @@
     font-size: 0.9rem;
   }
 
-  .flat-form__row--3 {
+  .flat-form__row--3,
+  .flat-form__row--4 {
     flex-wrap: wrap;
   }
 
-  .flat-form__row--3 > * {
+  .flat-form__row--3 > *,
+  .flat-form__row--4 > * {
     flex: 1 1 100%;
   }
 }
