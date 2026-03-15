@@ -35,11 +35,10 @@ function getRatingAvg(rating: FlatRating, key: RatingCategoryKey): number {
 }
 
 function getRatingOverall(rating: FlatRating): number {
-  if (rating.votes === 0) return 0
-  const sum =
+  return (
     rating.location + rating.renovation + rating.communications +
     rating.autonomy + rating.price + rating.impression
-  return sum / (6 * rating.votes)
+  )
 }
 
 interface FlatDetailProps {
