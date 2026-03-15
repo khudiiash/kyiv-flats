@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../services/firebase'
-import type { Flat } from '../types/flat'
+import type { Flat, FlatRating } from '../types/flat'
 
 const FLATS_COLLECTION = 'flats'
 
@@ -33,6 +33,22 @@ function sanitizeForFirestore<T extends Record<string, unknown>>(obj: T): Record
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined)
   ) as Record<string, unknown>
+}
+
+function parseRating(val: unknown): FlatRating | undefined {
+  if (!val || typeof val !== 'object') return undefined
+  const o = val as Record<string, unknown>
+  const votes = Number(o.votes) || 0
+  if (votes === 0) return undefined
+  return {
+    location: Number(o.location) || 0,
+    renovation: Number(o.renovation) || 0,
+    communications: Number(o.communications) || 0,
+    autonomy: Number(o.autonomy) || 0,
+    price: Number(o.price) || 0,
+    impression: Number(o.impression) || 0,
+    votes
+  }
 }
 
 function parseCoordinates(val: unknown): { lat: number; lng: number } {
@@ -83,6 +99,9 @@ function toFlat(docSnap: { id: string; data: Record<string, unknown> }): Flat {
     details: data.details as string | undefined,
     publishedAt: data.publishedAt as string | undefined,
     sourceUrl: data.sourceUrl as string | undefined,
+    status: (data.status as Flat['status']) ?? 'цікавить',
+    viewDate: data.viewDate as string | undefined,
+    rating: parseRating(data.rating),
     createdAt:
       typeof data.createdAt === 'string'
         ? data.createdAt

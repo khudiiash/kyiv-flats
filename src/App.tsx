@@ -87,7 +87,8 @@ function AppMain({
         {
           ...data,
           userId,
-          photos: data.photos ?? []
+          photos: data.photos ?? [],
+          status: 'цікавить'
         },
         {
           onSuccess: () => {
@@ -216,6 +217,9 @@ function AppMain({
                     flat={selectedFlat}
                     onEdit={() => setModalMode('edit')}
                     onDelete={handleDelete}
+                    onUpdate={(updates) =>
+                      updateFlat.mutate({ id: selectedFlat.id, ...updates })
+                    }
                     onFixCoordinates={(coordinates) =>
                       updateFlat.mutate({ id: selectedFlat.id, coordinates })
                     }

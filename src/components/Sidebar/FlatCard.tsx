@@ -29,9 +29,14 @@ export function FlatCard({ flat, isSelected, onClick }: FlatCardProps) {
           {flat.areaSqm} m² · {flat.address.slice(0, 40)}
           {flat.address.length > 40 ? '…' : ''}
         </div>
-        {flat.commission != null && flat.commission > 0 && (
-          <span className="flat-card__badge">Комісія {flat.commission}%</span>
-        )}
+        <div className="flat-card__badges">
+          {(flat.status && flat.status !== 'цікавить') && (
+            <span className="flat-card__badge flat-card__badge--status">{flat.status}</span>
+          )}
+          {flat.commission != null && flat.commission > 0 && (
+            <span className="flat-card__badge">Комісія {flat.commission}%</span>
+          )}
+        </div>
       </div>
     </article>
   )

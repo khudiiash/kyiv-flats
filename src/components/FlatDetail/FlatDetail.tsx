@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { Flat } from '../../types/flat'
+import type { Flat, FlatRating, FlatStatus, RatingCategoryKey } from '../../types/flat'
+import { STATUS_OPTIONS, RATING_CATEGORIES } from '../../types/flat'
 import { geocodeAddress } from '../../services/geocoding'
 
 const KYIV_CENTER = { lat: 50.4501, lng: 30.5234 }
@@ -10,16 +11,57 @@ function formatDate(iso: string): string {
   return iso
 }
 
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('uk-UA', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function getRatingAvg(rating: FlatRating, key: RatingCategoryKey): number {
+  return rating.votes > 0 ? rating[key] / rating.votes : 0
+}
+
+function getRatingOverall(rating: FlatRating): number {
+  if (rating.votes === 0) return 0
+  const sum =
+    rating.location + rating.renovation + rating.communications +
+    rating.autonomy + rating.price + rating.impression
+  return sum / (6 * rating.votes)
+}
+
 interface FlatDetailProps {
   flat: Flat
   onEdit: () => void
   onDelete: () => void
+  onUpdate?: (updates: Partial<Flat>) => void
   onFixCoordinates?: (coordinates: { lat: number; lng: number }) => void
 }
 
-export function FlatDetail({ flat, onEdit, onDelete, onFixCoordinates }: FlatDetailProps) {
+export function FlatDetail({ flat, onEdit, onDelete, onUpdate, onFixCoordinates }: FlatDetailProps) {
   const [geocoding, setGeocoding] = useState(false)
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null)
+  const status = flat.status ?? 'цікавить'
+  const [ratingForm, setRatingForm] = useState<Record<RatingCategoryKey, number>>({
+    location: 3,
+    renovation: 3,
+    communications: 3,
+    autonomy: 3,
+    price: 3,
+    impression: 3
+  })
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -103,6 +145,109 @@ export function FlatDetail({ flat, onEdit, onDelete, onFixCoordinates }: FlatDet
           <> · Комісія {flat.commission}%</>
         )}
         {flat.publishedAt && <> · З {formatDate(flat.publishedAt)}</>}
+      </div>
+      <div className="flat-detail__section flat-detail__section--status">
+        <strong>Статус</strong>
+        <div className="flat-detail__status-row">
+          <select
+            value={status}
+            onChange={(e) => onUpdate?.({ status: e.target.value as FlatStatus })}
+            className="flat-detail__status-select"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+        {status === 'перегляд' && (
+          <div className="flat-detail__view-date">
+            <label htmlFor="view-date">Дата та час перегляду</label>
+            <input
+              id="view-date"
+              type="datetime-local"
+              value={flat.viewDate ? toDatetimeLocal(flat.viewDate) : ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) onUpdate?.({ viewDate: new Date(v).toISOString() })
+              }}
+              className="flat-detail__datetime-input"
+            />
+            {flat.viewDate && (
+              <span className="flat-detail__view-date-display">
+                {formatDateTime(flat.viewDate)}
+              </span>
+            )}
+          </div>
+        )}
+        {status === 'враження' && (
+          <div className="flat-detail__rating">
+            <div className="flat-detail__rating-form">
+              {RATING_CATEGORIES.map(({ key, label }) => (
+                <div key={key} className="flat-detail__rating-row">
+                  <label>{label}</label>
+                  <div className="flat-detail__rating-stars">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={`flat-detail__star ${ratingForm[key] >= n ? 'flat-detail__star--active' : ''}`}
+                        onClick={() =>
+                          setRatingForm((f) => ({ ...f, [key]: n }))
+                        }
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn--primary flat-detail__rating-submit"
+                onClick={() => {
+                  const r = flat.rating
+                  const next: FlatRating = {
+                    location: (r?.location ?? 0) + ratingForm.location,
+                    renovation: (r?.renovation ?? 0) + ratingForm.renovation,
+                    communications: (r?.communications ?? 0) + ratingForm.communications,
+                    autonomy: (r?.autonomy ?? 0) + ratingForm.autonomy,
+                    price: (r?.price ?? 0) + ratingForm.price,
+                    impression: (r?.impression ?? 0) + ratingForm.impression,
+                    votes: (r?.votes ?? 0) + 1
+                  }
+                  onUpdate?.({ rating: next })
+                }}
+              >
+                Підтвердити
+              </button>
+            </div>
+            {flat.rating && flat.rating.votes > 0 && (
+              <div className="flat-detail__rating-display">
+                <div className="flat-detail__rating-summary">
+                  {RATING_CATEGORIES.map(({ key, label }) => (
+                    <div key={key} className="flat-detail__rating-row">
+                      <span>{label}</span>
+                      <span>{getRatingAvg(flat.rating!, key).toFixed(1)}</span>
+                    </div>
+                  ))}
+                  <div className="flat-detail__rating-row flat-detail__rating-overall">
+                    <span>Загальний</span>
+                    <span>{getRatingOverall(flat.rating!).toFixed(1)}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--small"
+                  onClick={() => onUpdate?.({ rating: undefined })}
+                >
+                  Очистити рейтинг
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {flat.photos.length > 0 && (
         <div className="flat-detail__photos">
