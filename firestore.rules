@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /flats/{flatId} {
+      allow read, update, delete: if resource.data.userId == 'single-user';
+      allow create: if request.resource.data.userId == 'single-user';
+    }
+    match /users/{userId} {
+      allow read, write: if userId == 'single-user';
+    }
+  }
+}
