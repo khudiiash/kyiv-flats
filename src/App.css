@@ -131,6 +131,75 @@
   align-items: center;
 }
 
+.filters-toggle {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+}
+
+.filters-toggle:hover {
+  background: var(--code-bg);
+}
+
+.filters-panel {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.filters-grid__row {
+  display: contents;
+}
+
+.filters-grid__label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.filters-grid__controls {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.filters-btn {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.filters-btn:hover {
+  background: var(--code-bg);
+}
+
+.filters-btn--active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filters-btn--chip {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
 .sidebar__error {
   padding: 12px 16px;
   margin: 0 16px 12px;
@@ -159,6 +228,8 @@
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
   overflow: hidden;
+  flex-shrink: 0;
+  min-height: 104px;
 }
 
 .flat-card:hover {
@@ -947,10 +1018,14 @@
   .sidebar {
     width: 100%;
     min-width: unset;
-    max-height: 38vh;
+    max-height: 42vh;
     flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 2;
+    background: var(--bg);
   }
 
   .sidebar__header {
@@ -989,6 +1064,8 @@
   .app-main {
     flex: 1;
     min-height: 0;
+    position: relative;
+    z-index: 0;
   }
 
   .app-panel {
@@ -1026,6 +1103,24 @@
   .map-container {
     min-height: 250px;
   }
+
+  .filters-btn {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  .filters-btn--chip {
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+
+  .filters-toggle {
+    min-height: 36px;
+    font-size: 0.85rem;
+  }
 }
 
 /* Mobile phones */
@@ -1039,7 +1134,34 @@
   }
 
   .sidebar {
-    max-height: 32vh;
+    max-height: 40vh;
+  }
+
+  .filters-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  .filters-btn--chip {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .filters-grid {
+    gap: 10px 14px;
+  }
+
+  .filters-grid__label {
+    font-size: 0.85rem;
+  }
+
+  .filters-toggle {
+    min-height: 40px;
+    font-size: 0.9rem;
+    padding: 8px 12px;
   }
 
   .flat-card {

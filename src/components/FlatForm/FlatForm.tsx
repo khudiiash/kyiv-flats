@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Flat } from '../../types/flat'
 import { APPEARANCE_OPTIONS, BUILDING_MATERIAL_OPTIONS, BUILDING_ERA_OPTIONS, SELLER_TYPE_OPTIONS } from '../../types/flat'
 import { parseListingUrl } from '../../services/firebase'
@@ -65,6 +65,21 @@ function isValidAppearance(val: string | undefined): boolean {
   return !!val && APPEARANCE_OPTIONS.includes(val as (typeof APPEARANCE_OPTIONS)[number])
 }
 
+function normalizeListingUrl(url: string): string {
+  try {
+    const parsed = new URL(url.trim())
+    if (parsed.hostname === 'apps.lun.ua') {
+      parsed.hostname = 'lun.ua'
+      parsed.search = ''
+    } else if (parsed.search) {
+      parsed.search = ''
+    }
+    return parsed.toString()
+  } catch {
+    return url.trim()
+  }
+}
+
 export function FlatForm({
   flat,
   initialData,
@@ -78,6 +93,8 @@ export function FlatForm({
   const [form, setForm] = useState<FlatFormData>(emptyForm)
   const [parsingUrl, setParsingUrl] = useState(false)
   const [submitGeocoding, setSubmitGeocoding] = useState(false)
+  const geocodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastGeocodedAddressRef = useRef<string>('')
 
   const KYIV_CENTER = { lat: 50.4501, lng: 30.5234 }
   const isDefaultCoords =
@@ -129,6 +146,35 @@ export function FlatForm({
     }
   }, [flat, initialData])
 
+  // Sync lastGeocodedAddress when loading from flat/initialData
+  useEffect(() => {
+    if (flat) lastGeocodedAddressRef.current = flat.address ?? ''
+    else if (initialData) lastGeocodedAddressRef.current = initialData.address ?? ''
+    else lastGeocodedAddressRef.current = ''
+  }, [flat, initialData])
+
+  useEffect(() => {
+    const addr = form.address.trim()
+    if (!addr || addr.length < 5 || addr === lastGeocodedAddressRef.current) return
+    if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current)
+    geocodeTimeoutRef.current = setTimeout(async () => {
+      geocodeTimeoutRef.current = null
+      try {
+        const coords = await geocode(addr)
+        if (coords) {
+          lastGeocodedAddressRef.current = addr
+          setForm((f) => ({ ...f, coordinates: coords }))
+          onParsedLocation?.({ address: addr, coordinates: coords })
+        }
+      } catch {
+        console.warn('Geocoding error:', addr)
+      }
+    }, 600)
+    return () => {
+      if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current)
+    }
+  }, [form.address, onParsedLocation])
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length || !flat?.id) return
@@ -140,7 +186,8 @@ export function FlatForm({
     if (!form.sourceUrl.trim()) return
     setParsingUrl(true)
     try {
-      const { data } = await parseListingUrl({ url: form.sourceUrl.trim() })
+      const urlToParse = normalizeListingUrl(form.sourceUrl)
+      const { data } = await parseListingUrl({ url: urlToParse })
       const d = data as {
         address?: string
         priceUsd?: number
@@ -238,7 +285,7 @@ export function FlatForm({
           <div className="flat-form__input-group">
             <input
               type="url"
-              placeholder="dom.ria / lun.ua"
+              placeholder="URL оголошення"
               value={form.sourceUrl}
               onChange={(e) => setForm((f) => ({ ...f, sourceUrl: e.target.value }))}
               required

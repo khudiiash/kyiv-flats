@@ -64,7 +64,7 @@ export interface Flat {
   updatedAt: string
 }
 
-export type SortField = 'priceUsd' | 'areaSqm' | 'createdAt' | 'address'
+export type SortField = 'priceUsd' | 'areaSqm' | 'createdAt' | 'commission'
 export type SortOrder = 'asc' | 'desc'
 
 export interface FlatFilters {
@@ -74,4 +74,6 @@ export interface FlatFilters {
   areaMax?: number
   hasCommission?: boolean
   hasParks?: boolean
+  buildingMaterial?: string[]
+  sellerType?: 'власник' | 'рієлтор'
 }
